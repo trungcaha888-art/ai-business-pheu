@@ -112,10 +112,24 @@ function doPost(e) {
 
 ## SEO & Social Media
 - **Meta tags**: title, description, viewport
-- **Open Graph** (Facebook/Zalo): og:title, og:description, og:image, og:locale
+- **Open Graph** (Facebook/Zalo): og:type, og:url, og:title, og:description, og:image, og:locale
 - **Twitter Card**: summary_large_image
-- **Thumbnail**: `og-thumbnail.png` (1200x630)
-- **Lưu ý**: og:image phải dùng URL tuyệt đối khi deploy
+- **Thumbnail**: `og-thumbnail.png` (screenshot Section 1 Hero, 1200x630)
+- **og:image phải dùng URL tuyệt đối**: `https://aibusiness.trungcaha.click/og-thumbnail.png`
+- **og:url**: `https://aibusiness.trungcaha.click/`
+
+### Xóa Cache Thumbnail Khi Cập Nhật
+- **Facebook**: Vào [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) → paste link → bấm "Scrape Again"
+- **Zalo**: Zalo không có tool debug → thêm query string vào link khi share, ví dụ: `https://aibusiness.trungcaha.click/?v=2` để Zalo fetch lại thumbnail mới. Hoặc chờ 24-48h Zalo tự xóa cache.
+
+## Deployment
+- **GitHub Repo**: https://github.com/trungcaha888-art/ai-business-pheu
+- **Domain**: https://aibusiness.trungcaha.click/
+- **Hosting**: Vercel (auto deploy từ GitHub `main` branch)
+- **Quy trình deploy**:
+  1. `git add .`
+  2. `git commit -m "mô tả thay đổi"`
+  3. `git push` → Vercel tự deploy
 
 ## Responsive Design
 | Breakpoint | Thay đổi chính |
@@ -137,7 +151,7 @@ AI BUSINESS LỚP PHỄU/
 ├── index.html          # Trang chính
 ├── style.css           # Toàn bộ CSS
 ├── script.js           # JavaScript (form, gallery, popup, countdown)
-├── og-thumbnail.png    # Thumbnail cho social media
+├── og-thumbnail.png    # Thumbnail cho social media (screenshot Section 1)
 ├── ảnh thầy.png        # Ảnh trainer
 ├── ảnh 1.jpg → ảnh 7   # Ảnh gallery đào tạo
 ├── s2.txt              # Nội dung section 2
@@ -154,3 +168,6 @@ AI BUSINESS LỚP PHỄU/
 5. Thêm JavaScript cho tương tác (form, gallery, popup)
 6. Kết nối Google Sheets qua Apps Script
 7. Tối ưu SEO + Open Graph meta tags
+8. Push code lên GitHub → Vercel auto deploy
+9. Cập nhật cache Facebook/Zalo nếu thay đổi thumbnail
+

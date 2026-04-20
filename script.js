@@ -1,8 +1,131 @@
 /* =============================================
    AI BUSINESS LANDING PAGE - JAVASCRIPT
+   Upgraded: Autocapture + UTM + Hidden iframe + Autofill
+   (Giống Siêu Trợ Lý)
    ============================================= */
 
+// ============================
+// AUTOCAPTURE & AUTOFILL LOGIC
+// ============================
+function setRootCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    const hostParts = window.location.hostname.split('.');
+    let rootDomain = window.location.hostname;
+    if (hostParts.length > 2) {
+        rootDomain = hostParts.slice(-2).join('.');
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/; domain=." + rootDomain;
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for(let i=0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+
+function autoFillForm() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let savedName = urlParams.get('name') || '';
+    let savedEmail = urlParams.get('email') || '';
+    let savedPhone = urlParams.get('phone') || '';
+
+    if(!savedName) {
+        let tmp = localStorage.getItem('user_name') || getCookie('user_name');
+        if(tmp) try { savedName = decodeURIComponent(tmp); } catch(e) { savedName = tmp; }
+    }
+    if(!savedEmail) {
+        let tmp = localStorage.getItem('user_email') || getCookie('user_email');
+        if(tmp) try { savedEmail = decodeURIComponent(tmp); } catch(e) { savedEmail = tmp; }
+    }
+    if(!savedPhone) {
+        let tmp = localStorage.getItem('user_phone') || getCookie('user_phone');
+        if(tmp) try { savedPhone = decodeURIComponent(tmp); } catch(e) { savedPhone = tmp; }
+    }
+
+    if (savedName || savedEmail || savedPhone) {
+        document.querySelectorAll('.registration-form').forEach(form => {
+            const nameInput = form.querySelector('input[name="fullName"]');
+            const emailInput = form.querySelector('input[name="email"]');
+            const phoneInput = form.querySelector('input[name="phone"]');
+            if (savedName && nameInput && !nameInput.value) nameInput.value = savedName;
+            if (savedEmail && emailInput && !emailInput.value) emailInput.value = savedEmail;
+            if (savedPhone && phoneInput && !phoneInput.value) phoneInput.value = savedPhone;
+        });
+    }
+}
+
+// ============================
+// HÀM ĐỌC UTM PARAMETERS TỪ URL
+// ============================
+function getUtmParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        utm_source: params.get('utm_source') || '',
+        utm_medium: params.get('utm_medium') || '',
+        utm_campaign: params.get('utm_campaign') || '',
+        utm_content: params.get('utm_content') || '',
+        utm_term: params.get('utm_term') || '',
+        utm_id: params.get('utm_id') || '',
+        fbclid: params.get('fbclid') || ''
+    };
+}
+
+// Lấy UTM ngay khi trang load
+const utmData = getUtmParams();
+
+// ============================
+// GOOGLE SHEETS CONFIG
+// ============================
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkdpM9oEKrLidkhJglOjLDa3Hz2iKYDg3PGVPKYGkUGr2s40GpAOZVPLa0B8ghwnIK/exec';
+
+// Hàm gửi dữ liệu qua hidden iframe (bypass CORS 100%)
+function sendToGoogleSheet(data) {
+    return new Promise((resolve) => {
+        const iframeName = 'hidden-iframe-' + Date.now();
+        const iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        const hiddenForm = document.createElement('form');
+        hiddenForm.method = 'POST';
+        hiddenForm.action = GOOGLE_SCRIPT_URL;
+        hiddenForm.target = iframeName;
+        hiddenForm.style.display = 'none';
+
+        for (const [key, value] of Object.entries(data)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            hiddenForm.appendChild(input);
+        }
+
+        document.body.appendChild(hiddenForm);
+        hiddenForm.submit();
+
+        setTimeout(() => {
+            iframe.remove();
+            hiddenForm.remove();
+            resolve();
+        }, 3000);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Auto-fill form nếu khách quay lại
+    autoFillForm();
+
     // === POPUP FUNCTIONS ===
     const popupOverlay = document.getElementById('popupOverlay');
     const popupClose = document.getElementById('popupClose');
@@ -46,44 +169,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // === GOOGLE SHEETS CONFIG ===
-    const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxkdpM9oEKrLidkhJglOjLDa3Hz2iKYDg3PGVPKYGkUGr2s40GpAOZVPLa0B8ghwnIK/exec';
-
     // === FORM HANDLING (shared) ===
     function handleFormSubmit(formEl, btnEl) {
-        const inputs = formEl.querySelectorAll('input');
-        let allFilled = true;
-        inputs.forEach(inp => { if (!inp.value.trim()) allFilled = false; });
+        const nameVal = formEl.querySelector('input[name="fullName"]').value.trim();
+        const emailVal = formEl.querySelector('input[name="email"]').value.trim();
+        const phoneVal = formEl.querySelector('input[name="phone"]').value.trim();
 
-        if (!allFilled) {
+        if (!nameVal || !emailVal || !phoneVal) {
             alert('Vui lòng điền đầy đủ thông tin!');
             return;
         }
 
-        // Collect data
-        const nameVal = formEl.querySelector('input[name="fullName"]').value.trim();
-        const emailVal = formEl.querySelector('input[name="email"]').value.trim();
-        const phoneVal = formEl.querySelector('input[name="phone"]').value.trim();
-        const utmLink = window.location.href; // Full URL with UTM params
+        // --- SAVE AUTOCAPTURE DATA ---
+        localStorage.setItem('user_name', encodeURIComponent(nameVal));
+        localStorage.setItem('user_email', encodeURIComponent(emailVal));
+        localStorage.setItem('user_phone', encodeURIComponent(phoneVal));
 
+        setRootCookie('user_name', encodeURIComponent(nameVal), 365);
+        setRootCookie('user_email', encodeURIComponent(emailVal), 365);
+        setRootCookie('user_phone', encodeURIComponent(phoneVal), 365);
+        // -----------------------------
+
+        // Loading state
         const originalText = btnEl.innerHTML;
-        btnEl.innerHTML = '<span class="cta-text">ĐANG XỬ LÝ...</span>';
+        btnEl.innerHTML = 'ĐANG XỬ LÝ...';
         btnEl.disabled = true;
         btnEl.style.opacity = '0.7';
 
-        // Send to Google Sheets via form submit (reliable cross-origin)
-        const formData = new FormData();
-        formData.append('name', nameVal);
-        formData.append('email', emailVal);
-        formData.append('phone', phoneVal);
-        formData.append('utm', utmLink);
+        // Gửi dữ liệu qua hidden iframe (giống Siêu Trợ Lý)
+        const linkUtm = window.location.href;
+        const source = utmData.utm_source;
 
-        fetch(SHEETS_URL, {
-            method: 'POST',
-            body: formData
-        })
-        .then(() => {
+        sendToGoogleSheet({
+            name: nameVal,
+            email: emailVal,
+            phone: phoneVal,
+            timestamp: new Date().toLocaleString('vi-VN'),
+            link_utm: linkUtm,
+            source: source
+        }).then(() => {
             // Fire Meta Pixel Lead event
+            if (typeof fbq === 'function') {
+                fbq('track', 'Lead');
+            }
+
+            // Reset form & button
+            formEl.reset();
+            btnEl.innerHTML = originalText;
+            btnEl.disabled = false;
+            btnEl.style.opacity = '1';
+
+            // Mở popup Zalo
+            openPopup();
+        }).catch(() => {
+            // Vẫn mở popup nếu lỗi gửi data
             if (typeof fbq === 'function') {
                 fbq('track', 'Lead');
             }
@@ -92,17 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btnEl.disabled = false;
             btnEl.style.opacity = '1';
             openPopup();
-        })
-        .catch(() => {
-            // Vẫn mở popup nếu lỗi gửi data
-            formEl.reset();
-            btnEl.innerHTML = originalText;
-            btnEl.disabled = false;
-            btnEl.style.opacity = '1';
-            openPopup();
         });
     }
 
+    // Bind cả 2 form (trên + dưới)
     const form = document.getElementById('registrationForm');
     if (form) {
         form.addEventListener('submit', (e) => {
@@ -126,12 +258,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setInterval(() => {
             if (slots > 5) {
-                // Random chance to decrease
                 if (Math.random() < 0.15) {
                     slots--;
                     urgencyEl.textContent = slots;
                     urgencyEl.style.animation = 'none';
-                    urgencyEl.offsetHeight; // Trigger reflow
+                    urgencyEl.offsetHeight;
                     urgencyEl.style.animation = 'slotDrop 0.4s ease';
                 }
             }
