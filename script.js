@@ -83,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
             body: formData
         })
         .then(() => {
+            // Fire Meta Pixel Lead event
+            if (typeof fbq === 'function') {
+                fbq('track', 'Lead');
+            }
             formEl.reset();
             btnEl.innerHTML = originalText;
             btnEl.disabled = false;
